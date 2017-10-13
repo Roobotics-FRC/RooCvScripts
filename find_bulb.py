@@ -6,6 +6,7 @@ sd = NetworkTables.getTable('SmartDashboard')
 cam = cv2.VideoCapture("http://10.43.73.74/mjpg/video.mjpg")
 X_CENTER = 320
 DEGREES_PER_PIXEL = 47 / 640
+FOCAL_LENGTH = 4.4 # in mm
 import time
 tStart=0
 while True:
