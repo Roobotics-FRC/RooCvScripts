@@ -6,7 +6,10 @@ sd = NetworkTables.getTable('SmartDashboard')
 cam = cv2.VideoCapture("http://10.43.73.74/mjpg/video.mjpg")
 X_CENTER = 320
 DEGREES_PER_PIXEL = 47 / 640
+import time
+tStart=0
 while True:
+    tStart = time.time()
     ret, im = cam.read()
     # Set up the detector with default parameters.
     detector = cv2.SimpleBlobDetector_create()
@@ -23,6 +26,7 @@ while True:
         im_with_keypoints = cv2.drawKeypoints(im, keypoints, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
     except KeyError:
         im_with_keypoints = im
+    print(time.time() - tStart)
     # Show keypoints
     cv2.imshow("Keypoints", im_with_keypoints)
     if cv2.waitKey(1) & 0xFF == ord('q'):
