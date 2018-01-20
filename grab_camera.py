@@ -10,7 +10,7 @@ import cv2
 cam = cv2.VideoCapture(argv[1])
 while True:
     ret, im = cam.read()
-    cv2.imshow("Camera Stream", im_with_keypoints)
+    cv2.imshow("Camera Stream", im)
     if cv2.waitKey(1) & 0xFF == ord('q'):
         cv2.destroyAllWindows()
         break
