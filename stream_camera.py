@@ -16,7 +16,6 @@ lmain.pack()
 
 def show_frame():
     _, frame = cap.read()
-    frame = cv2.flip(frame, 1)
     cv2image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
     cv2image = cv2.resize(cv2image, (0,0), fx=2, fy=2)
     img = Image.fromarray(cv2image)
