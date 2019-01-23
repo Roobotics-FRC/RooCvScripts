@@ -1,4 +1,5 @@
 import math
+import numpy as np
 import cv2
 from networktables import NetworkTables
 from grip_2019 import GripPipeline
@@ -64,5 +65,9 @@ def publish_contour_midpoint(contour1, contour2):
 
 while cap.isOpened():
     have_frame, frame = cap.read()
-    pipeline.process(frame)
-    extra_processing(pipeline.filter_contours_output)
+    height = np.size(frame, 0)
+    width = np.size(frame, 1)
+    # pipeline.process(frame)
+    # cv2.drawContours(frame, pipeline.find_contours_output, -1, (0,255,0), 3)
+    cv2.imshow("Frame", frame)
+    # extra_processing(pipeline.filter_contours_output)
