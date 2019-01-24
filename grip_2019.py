@@ -38,6 +38,10 @@ class GripPipeline:
 
         self.filter_contours_output = None
 
+        self.__convex_hulls_contours = self.filter_contours_output
+
+        self.convex_hulls_output = None
+
 
     def process(self, source0):
         """
@@ -54,6 +58,10 @@ class GripPipeline:
         # Step Filter_Contours0:
         self.__filter_contours_contours = self.find_contours_output
         (self.filter_contours_output) = self.__filter_contours(self.__filter_contours_contours, self.__filter_contours_min_area, self.__filter_contours_min_perimeter, self.__filter_contours_min_width, self.__filter_contours_max_width, self.__filter_contours_min_height, self.__filter_contours_max_height, self.__filter_contours_solidity, self.__filter_contours_max_vertices, self.__filter_contours_min_vertices, self.__filter_contours_min_ratio, self.__filter_contours_max_ratio)
+
+        # Step Convex_Hulls0:
+        self.__convex_hulls_contours = self.filter_contours_output
+        (self.convex_hulls_output) = self.__convex_hulls(self.__convex_hulls_contours)
 
 
     @staticmethod
@@ -130,6 +138,19 @@ class GripPipeline:
             if (ratio < min_ratio or ratio > max_ratio):
                 continue
             output.append(contour)
+        return output
+
+    @staticmethod
+    def __convex_hulls(input_contours):
+        """Computes the convex hulls of contours.
+        Args:
+            input_contours: A list of numpy.ndarray that each represent a contour.
+        Returns:
+            A list of numpy.ndarray that each represent a contour.
+        """
+        output = []
+        for contour in input_contours:
+            output.append(cv2.convexHull(contour))
         return output
 
 

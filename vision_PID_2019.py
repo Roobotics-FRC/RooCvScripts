@@ -21,6 +21,8 @@ def extra_processing(contours):
         return
     elif len(contours) == 3:
         sorted_contours = sorted(contours, key=lambda l: l[0][0][X])
+        print(sorted_contours)
+        print("******")
         for i in range(1, len(sorted_contours)):
             if is_correct_contour_pair(sorted_contours[i], sorted_contours[i - 1]):
                 publish_contour_midpoint(sorted_contours[i], sorted_contours[i - 1])
@@ -40,6 +42,24 @@ def is_correct_contour_pair(contour1, contour2):
     ratio = math.fabs(high_pt2[X] - high_pt1[X]) / math.sqrt(pow(low_pt2[X] - high_pt2[X], 2) + pow(low_pt2[Y] - high_pt2[Y], 2))
     # ideal ratio is 8 / 5.5—being between two would yield 12/5.5
     return ratio < 2
+
+
+def real_is_correct_contour_pair(contour1, contour2):
+    if contour1[0][0][X] < contour2[0][0][X]:
+        leftmost_contour = contour1
+        rightmost_contour = contour2
+    else:
+        leftmost_contour = contour2
+        rightmost_contour = contour1
+    return is_left_contour(leftmost_contour) and not is_left_contour(rightmost_contour)
+
+
+# returns whether the detected contour is the one that belongs on the left-hand side of a contour pair
+def is_left_contour(contour):
+    contour_pts = [cnt_pnt[0] for cnt_pnt in contour]
+    leftmost_point = min(contour_pts, key=lambda e: e[X])
+    rightmost_point = max(contour_pts, key=lambda e: e[X])
+    return leftmost_point[Y] > rightmost_point[Y]
 
 
 def find_inner_contour_points(contour):
@@ -80,3 +100,5 @@ while cap.isOpened():
     have_frame, frame = cap.read()
     pipeline.process(frame)
     extra_processing(pipeline.filter_contours_output)
+    is_left_contour(pipeline.convex_hulls_output[0])
+    print(is_left_contour(pipeline.filter_contours_output[1]))
