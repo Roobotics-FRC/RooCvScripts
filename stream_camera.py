@@ -4,7 +4,7 @@ from PIL import Image, ImageTk
 
 window_width, window_height = 640, 480
 im_width, im_height = 320, 240
-cap = cv2.VideoCapture('http://10.43.73.75/mjpg/video.mjpg?resolution=320x240')
+cap = cv2.VideoCapture('http://10.43.73.74/mjpg/video.mjpg?resolution=320x240')
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, im_width)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, im_height)
 

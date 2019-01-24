@@ -5,7 +5,7 @@ from networktables import NetworkTables
 from grip_2019 import GripPipeline
 NetworkTables.initialize(server='roborio-4373-frc.local')
 sd = NetworkTables.getTable('SmartDashboard')
-cap = cv2.VideoCapture("http://10.43.73.75/mjpg/video.mjpg?resolution=320x240")
+cap = cv2.VideoCapture("http://10.43.73.74/mjpg/video.mjpg?resolution=320x240")
 X_CENTER = 160
 DEGREES_PER_PIXEL = 47 / 320
 
@@ -20,11 +20,12 @@ def extra_processing(contours):
         print("Too many contours—move closer")
         return
     elif len(contours) == 3:
-        sorted_contours = sorted(contours, key=lambda l: l[0][X])
+        sorted_contours = sorted(contours, key=lambda l: l[0][0][X])
         for i in range(1, len(sorted_contours)):
             if is_correct_contour_pair(sorted_contours[i], sorted_contours[i - 1]):
                 publish_contour_midpoint(sorted_contours[i], sorted_contours[i - 1])
                 return
+            print("No valid contours found")
     elif len(contours) == 2:
         if is_correct_contour_pair(contours[0], contours[1]):
             publish_contour_midpoint(contours[0], contours[1])
@@ -64,11 +65,11 @@ def publish_contour_midpoint(contour1, contour2):
     contour_mdpt = (high_pt2[X] + high_pt1[X]) / 2
     offset = contour_mdpt * DEGREES_PER_PIXEL - X_CENTER * DEGREES_PER_PIXEL
     if math.fabs(offset) < 2.5: # roughly 5% of FOV
-        sd.putNumber('vision_lateral_correction', 'none')
+        sd.putString('vision_lateral_correction', 'none')
     elif offset < 0:
-        sd.putNumber('vision_lateral_correction', 'left')
+        sd.putString('vision_lateral_correction', 'left')
     else:
-        sd.putNumber('vision_lateral_correction', 'right')
+        sd.putString('vision_lateral_correction', 'right')
 
     sd.putNumber('vision_angle_offset', offset)
     avg_contour_area = (cv2.contourArea(contour1) + cv2.contourArea(contour2)) / 2
