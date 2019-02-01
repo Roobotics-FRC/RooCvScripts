@@ -5,7 +5,8 @@ from networktables import NetworkTables
 from grip_2019 import GripPipeline
 NetworkTables.initialize(server='roborio-4373-frc.local')
 sd = NetworkTables.getTable('SmartDashboard')
-cap = cv2.VideoCapture("http://10.43.73.74/mjpg/video.mjpg?resolution=320x240")
+cap = cv2.VideoCapture("http://axis-camera.local/mjpg/video.mjpg?resolution=320x240")
+# cap = cv2.VideoCapture("http://10.43.73.75/mjpg/video.mjpg?resolution=320x240")
 X_CENTER = 160
 DEGREES_PER_PIXEL = 47 / 320
 
@@ -17,6 +18,7 @@ pipeline = GripPipeline()
 
 def extra_processing(contours):
     if len(contours) > 3:
+        print('too many')
         sd.putString('vision_error', 'too_many')
         return
     elif len(contours) == 3:
@@ -33,6 +35,7 @@ def extra_processing(contours):
             sd.putString('vision_error', 'none')
             return
     else:
+        print('too few')
         sd.putString('vision_error', 'too_few')
         return
 
@@ -76,11 +79,13 @@ def publish_contour_midpoint(contour1, contour2):
     else:
         sd.putString('vision_lateral_correction', 'right')
 
+    print(offset)
     sd.putNumber('vision_angle_offset', offset)
     sd.putNumber('distance_to_target', math.tan(offset) * (contour_mdpt - X_CENTER))
 
 
 while cap.isOpened():
     have_frame, frame = cap.read()
+    frame = frame[0:0 + 240, 50:50 + 220]
     pipeline.process(frame)
     extra_processing(pipeline.convex_hulls_output)
