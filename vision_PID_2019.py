@@ -8,6 +8,9 @@ sd = NetworkTables.getTable('SmartDashboard')
 # cap = cv2.VideoCapture("http://axis-camera.local/mjpg/video.mjpg?resolution=320x240")
 cap = cv2.VideoCapture("http://10.43.73.74/mjpg/video.mjpg?resolution=320x240")
 
+VISION_TARGET_WIDTH = 2
+FOCAL_LENGTH = 432  # precomputed
+
 Y_CROP_START = 0
 Y_CROP_END = 240
 # X_CROP_START = 50
@@ -36,25 +39,30 @@ def extra_processing(contours):
 
         # determine the centermost contour pair
         closest_mdpt = 0
+        center_pair = []
         for pair in contour_pairs:
             pair_mdpt = find_contour_pair_midpoint_x(pair[0], pair[1])
             if math.fabs(pair_mdpt - X_CENTER) < math.fabs(closest_mdpt - X_CENTER):
                 closest_mdpt = pair_mdpt
+                center_pair = pair
 
         # publish midpoint
         if closest_mdpt != 0:
             publish_contour_midpoint(closest_mdpt)
+            publish_contour_distance(center_pair)
             sd.putString('vision_error', 'none')
         else:
             sd.putString('vision_error', 'no_valid_found')
         return
 
     elif len(contours) == 3:
+        print('3 contours')
         sorted_contours = sorted(contours, key=lambda l: l[0][0][X])
         for i in range(1, len(sorted_contours)):
             if is_correct_contour_pair(sorted_contours[i], sorted_contours[i - 1]):
                 mdpt = find_contour_pair_midpoint_x(sorted_contours[i], sorted_contours[i - 1])
                 publish_contour_midpoint(mdpt)
+                publish_contour_distance([sorted_contours[i], sorted_contours[i - 1]])
                 sd.putString('vision_error', 'none')
                 return
         sd.putString('vision_error', 'no_valid_found')
@@ -63,6 +71,7 @@ def extra_processing(contours):
         if is_correct_contour_pair(contours[0], contours[1]):
             mdpt = find_contour_pair_midpoint_x(contours[0], contours[1])
             publish_contour_midpoint(mdpt)
+            publish_contour_distance(contours)
             sd.putString('vision_error', 'none')
             return
         sd.putString('vision_error', 'no_valid_found')
@@ -107,6 +116,15 @@ def find_contour_pair_midpoint_x(contour1, contour2):
     return contour_mdpt
 
 
+# publishes the distance to the target, in inches, to the Smart Dashboard
+def publish_contour_distance(contours):
+    left_contour = contours[0] if is_left_contour(contours[0]) else contours[1]
+    rect = cv2.minAreaRect(left_contour)
+    distance = (VISION_TARGET_WIDTH * FOCAL_LENGTH) / min(rect[1][0], rect[1][1])
+    sd.putNumber('distance_to_target', distance)
+    print(f'distance: {distance}')
+
+
 def publish_contour_midpoint(contour_mdpt):
     offset = contour_mdpt * DEGREES_PER_PIXEL - X_CENTER * DEGREES_PER_PIXEL
     if math.fabs(offset) < 2.5:  # roughly 5% of FOV
@@ -121,7 +139,13 @@ def publish_contour_midpoint(contour_mdpt):
 
     print(offset)
     sd.putNumber('vision_angle_offset', offset)
-    sd.putNumber('distance_to_target', math.tan(offset) * (contour_mdpt - X_CENTER))
+
+
+# determines the focal length of tåhe camera with a known distance to the target
+def calibrate_focal_length(known_distance_to_target, contours):
+    left_contour_rect = cv2.minAreaRect(contours[0] if is_left_contour(contours[0]) else contours[1])
+    perimeter_width = min(left_contour_rect[1][0], left_contour_rect[1][1])
+    print(perimeter_width * known_distance_to_target / VISION_TARGET_WIDTH)
 
 
 while cap.isOpened():
