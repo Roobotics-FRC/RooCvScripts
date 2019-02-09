@@ -3,6 +3,25 @@ import numpy as np
 import cv2
 from networktables import NetworkTables
 from grip_2019 import GripPipeline
+
+root = lmain = None
+
+# Set up image stream
+window_width, window_height = 640, 480
+im_width, im_height = 320, 240
+
+try:
+    from PIL import Image, ImageTk
+    import tkinter as tk
+    root = tk.Tk()
+    root.wm_attributes("-topmost", 1)
+    root.bind('<Escape>', lambda e: root.quit())
+
+    lmain = tk.Label(root, width=window_width, height=window_height)
+    lmain.pack()
+except ImportError:
+    print('Could not import PIL, so no image stream will be displayed')
+
 NetworkTables.initialize(server='roborio-4373-frc.local')
 sd = NetworkTables.getTable('SmartDashboard')
 # cap = cv2.VideoCapture("http://axis-camera.local/mjpg/video.mjpg?resolution=320x240")
@@ -148,8 +167,27 @@ def calibrate_focal_length(known_distance_to_target, contours):
     print(perimeter_width * known_distance_to_target / VISION_TARGET_WIDTH)
 
 
-while cap.isOpened():
-    have_frame, frame = cap.read()
-    frame = frame[Y_CROP_START:Y_CROP_END, X_CROP_START:X_CROP_END]
+# renders a frame and does processing—used on Windows for simultaneous streaming and processing
+def show_frame():
+    _, frame = cap.read()
+    cv2image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
+    cv2image = cv2.resize(cv2image, (0, 0), fx=2, fy=2)  # if we ever need to resize, this is how
+    img = Image.fromarray(cv2image)
+    imgtk = ImageTk.PhotoImage(image=img)
+    lmain.imgtk = imgtk
+    lmain.configure(image=imgtk)
+    # frame = frame[Y_CROP_START:Y_CROP_END, X_CROP_START:X_CROP_END]
     pipeline.process(frame)
     extra_processing(pipeline.convex_hulls_output)
+    lmain.after(1, show_frame)
+
+
+if root is None:
+    while cap.isOpened():
+        _, frame = cap.read()
+        frame = frame[Y_CROP_START:Y_CROP_END, X_CROP_START:X_CROP_END]
+        pipeline.process(frame)
+        extra_processing(pipeline.convex_hulls_output)
+else:
+    show_frame()
+    root.mainloop()
