@@ -173,6 +173,7 @@ shared_frame = None
 
 # renders a frame and does processing—used on Windows for simultaneous streaming and processing
 def show_frame():
+    global shared_frame
     _, shared_frame = cap.read()
     cv2image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
     cv2image = cv2.resize(cv2image, (0, 0), fx=2, fy=2)  # if we ever need to resize, this is how
@@ -181,14 +182,14 @@ def show_frame():
     lmain.imgtk = imgtk
     lmain.configure(image=imgtk)
     # frame = frame[Y_CROP_START:Y_CROP_END, X_CROP_START:X_CROP_END]
-    # pipeline.process(frame)
-    # extra_processing(pipeline.convex_hulls_output)
     lmain.after(1, show_frame)
 
 
 def do_background_vision_computation():
-    pipeline.process(shared_frame)
-    extra_processing(pipeline.convex_hulls_output)
+    # TODO: check (and wait) for frame updates
+    while True:
+        pipeline.process(shared_frame)
+        extra_processing(pipeline.convex_hulls_output)
 
 if root is None:
     while cap.isOpened():
