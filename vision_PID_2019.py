@@ -9,7 +9,7 @@ sd = NetworkTables.getTable('SmartDashboard')
 cap = cv2.VideoCapture("http://10.43.73.74/mjpg/video.mjpg?resolution=320x240")
 
 VISION_TARGET_WIDTH = 2
-FOCAL_LENGTH = 432  # precomputed
+FOCAL_LENGTH = 382.8186340332031  # precomputed - previously 432
 
 Y_CROP_START = 0
 Y_CROP_END = 240
@@ -28,6 +28,7 @@ pipeline = GripPipeline()
 
 
 def extra_processing(contours):
+    print(f'{len(contours)} contours')
     if len(contours) > 3:
         sorted_contours = sorted(contours, key = lambda l: l[0][0][X])
         contour_pairs = []
@@ -56,7 +57,6 @@ def extra_processing(contours):
         return
 
     elif len(contours) == 3:
-        print('3 contours')
         sorted_contours = sorted(contours, key=lambda l: l[0][0][X])
         for i in range(1, len(sorted_contours)):
             if is_correct_contour_pair(sorted_contours[i], sorted_contours[i - 1]):
