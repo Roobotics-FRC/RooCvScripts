@@ -169,12 +169,14 @@ def calibrate_focal_length(known_distance_to_target, contours):
 
 
 shared_frame = None
+new_frame = True
 
 
 # renders a frame and does processing—used on Windows for simultaneous streaming and processing
 def show_frame():
-    global shared_frame
+    global shared_frame, new_frame
     _, shared_frame = cap.read()
+    new_frame = True
     cv2image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
     cv2image = cv2.resize(cv2image, (0, 0), fx=2, fy=2)  # if we ever need to resize, this is how
     img = Image.fromarray(cv2image)
@@ -186,10 +188,13 @@ def show_frame():
 
 
 def do_background_vision_computation():
-    # TODO: check (and wait) for frame updates
+    global new_frame
     while True:
-        pipeline.process(shared_frame)
-        extra_processing(pipeline.convex_hulls_output)
+        if new_frame:
+            pipeline.process(shared_frame)
+            extra_processing(pipeline.convex_hulls_output)
+            new_frame = False
+
 
 if root is None:
     while cap.isOpened():
