@@ -175,7 +175,6 @@ shared_frame = None
 def show_frame():
     global shared_frame
     _, shared_frame = cap.read()
-    new_frame = True
     cv2image = cv2.cvtColor(shared_frame, cv2.COLOR_BGR2RGBA)
     cv2image = cv2.resize(cv2image, (0, 0), fx=2, fy=2)  # if we ever need to resize, this is how
     img = Image.fromarray(cv2image)
@@ -190,7 +189,6 @@ def do_background_vision_computation():
     while True:
         pipeline.process(shared_frame)
         extra_processing(pipeline.convex_hulls_output)
-        new_frame = False
 
 
 if root is None:
