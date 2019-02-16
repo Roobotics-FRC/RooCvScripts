@@ -25,12 +25,14 @@ except ImportError:
 
 NetworkTables.initialize(server='roborio-4373-frc.local')
 sd = NetworkTables.getTable('SmartDashboard')
-# cap = cv2.VideoCapture("http://axis-camera.local/mjpg/video.mjpg?resolution=320x240")
-cap = cv2.VideoCapture("http://10.43.73.74/mjpg/video.mjpg?resolution=320x240")
+cap = cv2.VideoCapture("http://axis-camera.local/mjpg/video.mjpg?resolution=320x240")
+# cap = cv2.VideoCapture("http://10.43.73.74/mjpg/video.mjpg?resolution=320x240")
 
+# constants in inches
 VISION_TARGET_WIDTH = 2
 FOCAL_LENGTH = 382.8186340332031  # precomputed - previously 432
 
+# constants in pixels
 Y_CROP_START = 0
 Y_CROP_END = 240
 # X_CROP_START = 50
