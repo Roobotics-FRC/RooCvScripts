@@ -7,6 +7,8 @@ from threading import Thread
 
 root = lmain = vision_thread = None
 
+FRAME_FETCH_INTERVAL = 1  # how long to wait between frames, in milliseconds
+
 # Set up image stream
 window_width, window_height = 640, 480
 im_width, im_height = 640, 480
@@ -21,14 +23,14 @@ try:
     lmain = tk.Label(root, width=window_width, height=window_height)
     lmain.pack()
 except ImportError:
-    print('Could not import PIL, so OpenCV imshow fallback will be used')
+    print('Could not import PIL; OpenCV imshow debugging mode will be used instead')
 
 NetworkTables.initialize(server='roborio-4373-frc.local')
 sd = NetworkTables.getTable('SmartDashboard')
-cap = cv2.VideoCapture(f'http://axis-camera.local/mjpg/video.mjpg?resolution={im_width}x{im_height}')
+cap = cv2.VideoCapture(f'http://axis-camera.local/mjpg/video.mjpg?resolution={im_width}x{im_height}&compression=50')
 
 # constants in inches
-VISION_TARGET_WIDTH = 2  # TODO: this might be more accurate as 2.25
+VISION_TARGET_WIDTH = 2  # TODO: is this might accurate as 2.25?
 INTER_VISION_TARGET_DIST = 8
 FOCAL_LENGTH = 558.1091213226318  # precomputed
 
@@ -176,7 +178,7 @@ def show_frame():
     imgtk = ImageTk.PhotoImage(image=img)
     lmain.imgtk = imgtk
     lmain.configure(image=imgtk)
-    lmain.after(1, show_frame)
+    lmain.after(FRAME_FETCH_INTERVAL, show_frame)
 
 
 def do_background_vision_computation():
@@ -194,7 +196,7 @@ if root is None:
         extra_processing(pipeline.convex_hulls_output)
         contour_frame = cv2.drawContours(frame, pipeline.convex_hulls_output, -1, (0, 0, 0), 1)
         cv2.imshow('contours', contour_frame)
-        cv2.waitKey(1)
+        cv2.waitKey(FRAME_FETCH_INTERVAL)
 else:
     show_frame()
     vision_thread = Thread(target=do_background_vision_computation, args=()).start()
