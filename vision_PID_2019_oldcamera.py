@@ -1,8 +1,7 @@
 import math
-import numpy as np
 import cv2
 from networktables import NetworkTables
-from grip_2019 import GripPipeline
+from grip_2019_oldcamera import GripPipeline
 from threading import Thread
 
 root = lmain = vision_thread = None
