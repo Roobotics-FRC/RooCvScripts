@@ -10,8 +10,9 @@ root = lmain = vision_thread = None
 FRAME_FETCH_INTERVAL = 1  # how long to wait between frames, in milliseconds
 
 # Set up image stream
-window_width, window_height = 640, 480
-im_width, im_height = 640, 480
+WINDOW_WIDTH, WINDOW_HEIGHT = 640, 480
+IM_WIDTH, IM_HEIGHT = 640, 480
+COMPRESSION = 50  # from 0 to 100
 
 try:
     from PIL import Image, ImageTk
@@ -20,14 +21,15 @@ try:
     root.wm_attributes("-topmost", 1)
     root.bind('<Escape>', lambda e: root.quit())
 
-    lmain = tk.Label(root, width=window_width, height=window_height)
+    lmain = tk.Label(root, width=WINDOW_WIDTH, height=WINDOW_HEIGHT)
     lmain.pack()
 except ImportError:
     print('Could not import PIL; OpenCV imshow debugging mode will be used instead')
 
 NetworkTables.initialize(server='roborio-4373-frc.local')
 sd = NetworkTables.getTable('SmartDashboard')
-cap = cv2.VideoCapture(f'http://axis-camera.local/mjpg/video.mjpg?resolution={im_width}x{im_height}&compression=50')
+cap = cv2.VideoCapture(f'http://axis-camera.local/mjpg/video.mjpg?resolution={IM_WIDTH}x{IM_HEIGHT}'
+                        + f'&compression={COMPRESSION}')
 
 # constants in inches
 VISION_TARGET_WIDTH = 2  # TODO: is this might accurate as 2.25?
@@ -36,11 +38,11 @@ FOCAL_LENGTH = 558.1091213226318  # precomputed
 
 # constants in pixels
 Y_CROP_START = 0
-Y_CROP_END = im_height
+Y_CROP_END = IM_HEIGHT
 # X_CROP_START = 50
 # X_CROP_END = 270
-X_CROP_START = round(im_width / 6)
-X_CROP_END = round(im_width * 5 / 6)
+X_CROP_START = round(IM_WIDTH / 6)
+X_CROP_END = round(IM_WIDTH * 5 / 6)
 
 X_CENTER = (X_CROP_END - X_CROP_START) / 2
 DEGREES_PER_PIXEL = 52 / (X_CROP_END - X_CROP_START)  # FOV is roughly 52° with 2/3 frame crop
@@ -173,7 +175,7 @@ def show_frame():
     global shared_frame
     _, shared_frame = cap.read()
     cv2image = cv2.cvtColor(shared_frame, cv2.COLOR_BGR2RGBA)
-    cv2image = cv2.resize(cv2image, (0, 0), fx=window_width / im_width, fy=window_height / im_height)
+    cv2image = cv2.resize(cv2image, (0, 0), fx=WINDOW_WIDTH / IM_WIDTH, fy=WINDOW_HEIGHT / IM_HEIGHT)
     img = Image.fromarray(cv2image)
     imgtk = ImageTk.PhotoImage(image=img)
     lmain.imgtk = imgtk
