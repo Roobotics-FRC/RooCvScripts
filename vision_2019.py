@@ -1,14 +1,25 @@
 import math
 import cv2
 from networktables import NetworkTables
-from grip_2019_oldcamera import GripPipeline
 from threading import Thread
+
+IS_NEW_CAMERA = True  # True for Axis M1045, False for Axis M1011
+
+if IS_NEW_CAMERA:
+    from grip_2019_newcamera import GripPipeline
+else:
+    from grip_2019_oldcamera import GripPipeline
 
 root = lmain = vision_thread = None
 
+FRAME_FETCH_INTERVAL = 1  # how long to wait between frames, in milliseconds
+
 # Set up image stream
-window_width, window_height = 640, 480
-im_width, im_height = 320, 240
+WINDOW_WIDTH, WINDOW_HEIGHT = 640, 480
+IM_WIDTH, IM_HEIGHT = 640, 480
+if not IS_NEW_CAMERA:
+    IM_WIDTH, IM_HEIGHT = 320, 240
+COMPRESSION = 50  # from 0 to 100
 
 try:
     from PIL import Image, ImageTk
@@ -17,30 +28,32 @@ try:
     root.wm_attributes("-topmost", 1)
     root.bind('<Escape>', lambda e: root.quit())
 
-    lmain = tk.Label(root, width=window_width, height=window_height)
+    lmain = tk.Label(root, width=WINDOW_WIDTH, height=WINDOW_HEIGHT)
     lmain.pack()
 except ImportError:
-    print('Could not import PIL, so no image stream will be displayed')
+    print('Could not import PIL; OpenCV imshow debugging mode will be used instead')
 
 NetworkTables.initialize(server='roborio-4373-frc.local')
 sd = NetworkTables.getTable('SmartDashboard')
-cap = cv2.VideoCapture("http://axis-camera.local/mjpg/video.mjpg?resolution=320x240")
-# cap = cv2.VideoCapture("http://10.43.73.74/mjpg/video.mjpg?resolution=320x240")
+cap = cv2.VideoCapture(f'http://axis-camera.local/mjpg/video.mjpg?resolution={IM_WIDTH}x{IM_HEIGHT}'
+                       + f'&compression={COMPRESSION}')
 
 # constants in inches
-VISION_TARGET_WIDTH = 2
-FOCAL_LENGTH = 382.8186340332031  # precomputed - previously 432
+VISION_TARGET_WIDTH = 2  # TODO: is this more accurate as 2.25?
+INTER_VISION_TARGET_DIST = 8
+FOCAL_LENGTH = 558.1091213226318 if IS_NEW_CAMERA else 382.8186340332031  # precomputed
 
 # constants in pixels
 Y_CROP_START = 0
-Y_CROP_END = 240
+Y_CROP_END = IM_HEIGHT
 # X_CROP_START = 50
 # X_CROP_END = 270
-X_CROP_START = 0
-X_CROP_END = 320
+X_CROP_START = round(IM_WIDTH / 6) if IS_NEW_CAMERA else 0
+X_CROP_END = round(IM_WIDTH * 5 / 6) if IS_NEW_CAMERA else IM_WIDTH
 
 X_CENTER = (X_CROP_END - X_CROP_START) / 2
-DEGREES_PER_PIXEL = 47 / (X_CROP_END - X_CROP_START)
+# FOV is roughly 52° with 2/3 frame crop on new camera; about 47 on old
+DEGREES_PER_PIXEL = (52 if IS_NEW_CAMERA else 47) / (X_CROP_END - X_CROP_START)
 
 X = 0
 Y = 1
@@ -49,6 +62,11 @@ pipeline = GripPipeline()
 
 
 def extra_processing(contours):
+    """
+    Performs extra calculations on the contours from the GRIP pipeline.
+
+    :param contours: convex hulls from the GRIP pipeline.
+    """
     print(f'{len(contours)} contours')
     if len(contours) > 3:
         sorted_contours = sorted(contours, key = lambda l: l[0][0][X])
@@ -70,7 +88,6 @@ def extra_processing(contours):
 
         # publish midpoint
         if closest_mdpt != 0:
-            publish_contour_midpoint(closest_mdpt)
             publish_contour_distance(center_pair)
             sd.putString('vision_error', 'none')
         else:
@@ -81,8 +98,6 @@ def extra_processing(contours):
         sorted_contours = sorted(contours, key=lambda l: l[0][0][X])
         for i in range(1, len(sorted_contours)):
             if is_correct_contour_pair(sorted_contours[i], sorted_contours[i - 1]):
-                mdpt = find_contour_pair_midpoint_x(sorted_contours[i], sorted_contours[i - 1])
-                publish_contour_midpoint(mdpt)
                 publish_contour_distance([sorted_contours[i], sorted_contours[i - 1]])
                 sd.putString('vision_error', 'none')
                 return
@@ -90,8 +105,6 @@ def extra_processing(contours):
 
     elif len(contours) == 2:
         if is_correct_contour_pair(contours[0], contours[1]):
-            mdpt = find_contour_pair_midpoint_x(contours[0], contours[1])
-            publish_contour_midpoint(mdpt)
             publish_contour_distance(contours)
             sd.putString('vision_error', 'none')
             return
@@ -103,8 +116,10 @@ def extra_processing(contours):
         return
 
 
-# returns whether a pair of contours is a correct vision target
 def is_correct_contour_pair(contour1, contour2):
+    """
+    Returns whether a pair of contours is a correct vision target.
+    """
     if contour1[0][0][X] < contour2[0][0][X]:
         leftmost_contour = contour1
         rightmost_contour = contour2
@@ -114,8 +129,10 @@ def is_correct_contour_pair(contour1, contour2):
     return is_left_contour(leftmost_contour) and not is_left_contour(rightmost_contour)
 
 
-# returns whether the detected contour is the one that belongs on the left-hand side of a contour pair
 def is_left_contour(contour):
+    """
+    Returns whether the detected contour is the one that belongs on the left-hand side of a contour pair.
+    """
     contour_pts = [cnt_pnt[0] for cnt_pnt in contour]
     leftmost_point = min(contour_pts, key=lambda e: e[X])
     rightmost_point = max(contour_pts, key=lambda e: e[X])
@@ -123,6 +140,12 @@ def is_left_contour(contour):
 
 
 def find_innermost_contour_point(contour):
+    """
+    Finds the point on a contour that is closest to the center of the vision target pair.
+
+    :param contour: the contour whose inner point to find.
+    :return: the innermost point of that contour (top right for the right target, top left for the left).
+    """
     contour_pts = [cnt_pnt[0] for cnt_pnt in contour]
     if is_left_contour(contour):
         return max(contour_pts, key=lambda e: e[X])
@@ -131,39 +154,56 @@ def find_innermost_contour_point(contour):
 
 
 def find_contour_pair_midpoint_x(contour1, contour2):
+    """
+    Determines if a pair of contours is a correct vision target pair.
+
+    :return: True if the contours form a correct pair, or False if they do not.
+    """
     inner_pt1 = find_innermost_contour_point(contour1)
     inner_pt2 = find_innermost_contour_point(contour2)
     contour_mdpt = (inner_pt2[X] + inner_pt1[X]) / 2
     return contour_mdpt
 
 
-# publishes the distance to the target, in inches, to the Smart Dashboard
+def find_lateral_distance_to_contour_mdpt(contour1, contour2):
+    """
+    Finds the horizontal distance to the midpoint of the specified contours,
+    using the known horizontal distance between targets as a basis. The passed contours must be a valid pair.
+
+    :return: the numerical lateral distance, in inches (the units of the inter-target distance), to the midpoint.
+    """
+    inner1 = find_innermost_contour_point(contour1)[X]
+    inner2 = find_innermost_contour_point(contour2)[X]
+    inter_contour_dist_px = math.fabs(inner2 - inner1)
+    px_to_in_ratio = INTER_VISION_TARGET_DIST / inter_contour_dist_px
+    contour_mdpt = (inner2 + inner1) / 2
+    dist_center_to_mdpt = contour_mdpt - X_CENTER
+    return dist_center_to_mdpt * px_to_in_ratio
+
+
 def publish_contour_distance(contours):
+    """
+    Publishes the lateral and forward distances to the target, in inches, to the Smart Dashboard.
+
+    :param contours: two contours comprising the target contour pair.
+    """
     left_contour = contours[0] if is_left_contour(contours[0]) else contours[1]
     rect = cv2.minAreaRect(left_contour)
-    distance = (VISION_TARGET_WIDTH * FOCAL_LENGTH) / min(rect[1][0], rect[1][1])
-    sd.putNumber('distance_to_target', distance)
-    print(f'distance: {distance}')
+    forward_distance = (VISION_TARGET_WIDTH * FOCAL_LENGTH) / min(rect[1][0], rect[1][1])
+    lateral_distance = find_lateral_distance_to_contour_mdpt(contours[0], contours[1])
+    sd.putNumber('forward_distance_to_target', forward_distance)
+    sd.putNumber('lateral_distance_to_target', lateral_distance)
+    print(f'forward_distance: {forward_distance}\tlateral_distance: {lateral_distance}')
 
 
-def publish_contour_midpoint(contour_mdpt):
-    offset = contour_mdpt * DEGREES_PER_PIXEL - X_CENTER * DEGREES_PER_PIXEL
-    if math.fabs(offset) < 2.5:  # roughly 5% of FOV
-        sd.putString('vision_lateral_correction', 'none')
-        print('none', end=' ')
-    elif offset < 0:
-        sd.putString('vision_lateral_correction', 'left')
-        print('left', end=' ')
-    else:
-        sd.putString('vision_lateral_correction', 'right')
-        print('right', end=' ')
-
-    print(offset)
-    sd.putNumber('vision_angle_offset', offset)
-
-
-# determines the focal length of tåhe camera with a known distance to the target
 def calibrate_focal_length(known_distance_to_target, contours):
+    """
+    Determines the focal length of the camera based on a known distance to the target and the width of the target
+    (defined as a constant) and prints it out.
+
+    :param known_distance_to_target: the distance, in inches, to the target being used to calibrate.
+    :param contours: a contour pair whose left contour will be used for calibration.
+    """
     left_contour_rect = cv2.minAreaRect(contours[0] if is_left_contour(contours[0]) else contours[1])
     perimeter_width = min(left_contour_rect[1][0], left_contour_rect[1][1])
     print(perimeter_width * known_distance_to_target / VISION_TARGET_WIDTH)
@@ -172,23 +212,28 @@ def calibrate_focal_length(known_distance_to_target, contours):
 shared_frame = None
 
 
-# renders a frame and does processing—used on Windows for simultaneous streaming and processing
 def show_frame():
+    """
+    Renders the shared frame in an always-foreground window (using Windows APIs).
+    """
     global shared_frame
     _, shared_frame = cap.read()
     cv2image = cv2.cvtColor(shared_frame, cv2.COLOR_BGR2RGBA)
-    cv2image = cv2.resize(cv2image, (0, 0), fx=2, fy=2)  # if we ever need to resize, this is how
+    cv2image = cv2.resize(cv2image, (0, 0), fx=WINDOW_WIDTH / IM_WIDTH, fy=WINDOW_HEIGHT / IM_HEIGHT)
     img = Image.fromarray(cv2image)
     imgtk = ImageTk.PhotoImage(image=img)
     lmain.imgtk = imgtk
     lmain.configure(image=imgtk)
-    # frame = frame[Y_CROP_START:Y_CROP_END, X_CROP_START:X_CROP_END]
-    lmain.after(1, show_frame)
+    lmain.after(FRAME_FETCH_INTERVAL, show_frame)
 
 
 def do_background_vision_computation():
+    """
+    Maintains an infinitely iterating thread that does vision computations on the shared frame.
+    """
     while True:
-        pipeline.process(shared_frame)
+        frame = shared_frame[Y_CROP_START:Y_CROP_END, X_CROP_START:X_CROP_END]
+        pipeline.process(frame)
         extra_processing(pipeline.convex_hulls_output)
 
 
@@ -198,6 +243,9 @@ if root is None:
         frame = frame[Y_CROP_START:Y_CROP_END, X_CROP_START:X_CROP_END]
         pipeline.process(frame)
         extra_processing(pipeline.convex_hulls_output)
+        contour_frame = cv2.drawContours(frame, pipeline.convex_hulls_output, -1, (0, 0, 0), 1)
+        cv2.imshow('contours', contour_frame)
+        cv2.waitKey(FRAME_FETCH_INTERVAL)
 else:
     show_frame()
     vision_thread = Thread(target=do_background_vision_computation, args=()).start()
