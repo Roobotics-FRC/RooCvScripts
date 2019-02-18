@@ -26,7 +26,6 @@ try:
     import tkinter as tk
     root = tk.Tk()
     root.wm_attributes("-topmost", 1)
-    root.bind('<Escape>', lambda e: root.quit())
 
     lmain = tk.Label(root, width=WINDOW_WIDTH, height=WINDOW_HEIGHT)
     lmain.pack()
