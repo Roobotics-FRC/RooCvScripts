@@ -184,6 +184,7 @@ def find_lateral_distance_to_contour_mdpt(contour1, contour2):
 def publish_contour_distance(contours):
     """
     Publishes the lateral and forward distances to the target, in inches, to the Smart Dashboard.
+    Also publishes the angle, in degrees, to the target.
 
     :param contours: two contours comprising the target contour pair.
     """
@@ -191,9 +192,12 @@ def publish_contour_distance(contours):
     rect = cv2.minAreaRect(left_contour)
     forward_distance = (VISION_TARGET_WIDTH * FOCAL_LENGTH) / min(rect[1][0], rect[1][1])
     lateral_distance = find_lateral_distance_to_contour_mdpt(contours[0], contours[1])
+    angle_offset = (find_contour_pair_midpoint_x(contours[0], contours[1]) - X_CENTER) * DEGREES_PER_PIXEL
+
     sd.putNumber('forward_distance_to_target', forward_distance)
     sd.putNumber('lateral_distance_to_target', lateral_distance)
-    print(f'forward_distance: {forward_distance}\tlateral_distance: {lateral_distance}')
+    sd.putNumber('angle_to_target', angle_offset)
+    print(f'forward_distance: {forward_distance}\tlateral_distance: {lateral_distance}\tangle_offset: {angle_offset}')
 
 
 def calibrate_focal_length(known_distance_to_target, contours):
