@@ -68,7 +68,7 @@ def extra_processing(contours):
     """
     print(f'{len(contours)} contours')
     if len(contours) > 3:
-        sorted_contours = sorted(contours, key = lambda l: l[0][0][X])
+        sorted_contours = sorted(contours, key=lambda l: l[0][0][X])
         contour_pairs = []
 
         # collect all of the contours into their pairs
@@ -222,7 +222,8 @@ def show_frame():
     global shared_frame
     _, shared_frame = cap.read()
     cv2image = cv2.cvtColor(shared_frame, cv2.COLOR_BGR2RGBA)
-    cv2image = cv2.resize(cv2image, (0, 0), fx=WINDOW_WIDTH / IM_WIDTH, fy=WINDOW_HEIGHT / IM_HEIGHT)
+    if IM_WIDTH != WINDOW_WIDTH or IM_HEIGHT != WINDOW_HEIGHT:
+        cv2image = cv2.resize(cv2image, (0, 0), fx=WINDOW_WIDTH / IM_WIDTH, fy=WINDOW_HEIGHT / IM_HEIGHT)
     img = Image.fromarray(cv2image)
     imgtk = ImageTk.PhotoImage(image=img)
     lmain.imgtk = imgtk
@@ -235,8 +236,8 @@ def do_background_vision_computation():
     Maintains an infinitely iterating thread that does vision computations on the shared frame.
     """
     while True:
-        frame = shared_frame[Y_CROP_START:Y_CROP_END, X_CROP_START:X_CROP_END]
-        pipeline.process(frame)
+        vision_frame = shared_frame[Y_CROP_START:Y_CROP_END, X_CROP_START:X_CROP_END]
+        pipeline.process(vision_frame)
         extra_processing(pipeline.convex_hulls_output)
 
 
