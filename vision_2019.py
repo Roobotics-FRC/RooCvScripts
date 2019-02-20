@@ -40,7 +40,7 @@ cap = cv2.VideoCapture(f'http://axis-camera.local/mjpg/video.mjpg?resolution={IM
 # constants in inches
 VISION_TARGET_WIDTH = 2  # TODO: is this more accurate as 2.25?
 INTER_VISION_TARGET_DIST = 8
-FOCAL_LENGTH = 558.1091213226318 if IS_NEW_CAMERA else 382.8186340332031  # precomputed
+FOCAL_LENGTH = 460.70837688446045 if IS_NEW_CAMERA else 382.8186340332031  # precomputed
 
 # constants in pixels
 Y_CROP_START = 0
@@ -174,6 +174,8 @@ def find_lateral_distance_to_contour_mdpt(contour1, contour2):
     inner1 = find_innermost_contour_point(contour1)[X]
     inner2 = find_innermost_contour_point(contour2)[X]
     inter_contour_dist_px = math.fabs(inner2 - inner1)
+    if inter_contour_dist_px == 0:
+        return None
     px_to_in_ratio = INTER_VISION_TARGET_DIST / inter_contour_dist_px
     contour_mdpt = (inner2 + inner1) / 2
     dist_center_to_mdpt = contour_mdpt - X_CENTER
@@ -194,7 +196,8 @@ def publish_contour_distance(contours):
     angle_offset = (find_contour_pair_midpoint_x(contours[0], contours[1]) - X_CENTER) * DEGREES_PER_PIXEL
 
     sd.putNumber('forward_distance_to_target', forward_distance)
-    sd.putNumber('lateral_distance_to_target', lateral_distance)
+    if lateral_distance is not None:
+        sd.putNumber('lateral_distance_to_target', lateral_distance)
     sd.putNumber('angle_to_target', angle_offset)
     print(f'forward_distance: {forward_distance}\tlateral_distance: {lateral_distance}\tangle_offset: {angle_offset}')
 
