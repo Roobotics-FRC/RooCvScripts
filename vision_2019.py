@@ -24,8 +24,6 @@ COMPRESSION = 50  # from 0 to 100
 
 NetworkTables.initialize(server='roborio-4373-frc.local')
 sd = NetworkTables.getTable('SmartDashboard')
-cap = cv2.VideoCapture(f'http://axis-camera.local/mjpg/video.mjpg?resolution={IM_WIDTH}x{IM_HEIGHT}'
-                       + f'&compression={COMPRESSION}')
 
 # constants in inches
 VISION_TARGET_WIDTH = 2  # TODO: is this more accurate as 2.25?
@@ -222,13 +220,18 @@ def do_background_vision_computation():
 
 
 def main():
-    global vision_thread, shared_frame
+    global vision_thread, shared_frame, cap
+    url_string = (f'http://axis-camera.local/mjpg/video.mjpg?resolution={IM_WIDTH}x{IM_HEIGHT}'
+                  + f'&compression={COMPRESSION}')
+    cap = cv2.VideoCapture(url_string)
+    while not cap.isOpened():
+        print('Waiting for connection; will retry in 1 second...')
+        sleep(1)
     vision_thread = Thread(target=do_background_vision_computation, args=()).start()
     while cap.isOpened():
         success, shared_frame = cap.read()
         if not success:
-            print('Connection failed; will retry in 1 second...')
-            sleep(1)
+            print('Frame fetch failed')
             continue
         cv2.imshow('camera', shared_frame)
         cv2.waitKey(FRAME_FETCH_INTERVAL)
