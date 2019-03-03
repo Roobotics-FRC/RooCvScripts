@@ -213,7 +213,7 @@ def do_background_vision_computation():
     global shared_frame
     while True:
         if shared_frame is None:
-            return
+            continue
         vision_frame = shared_frame[Y_CROP_START:Y_CROP_END, X_CROP_START:X_CROP_END]
         pipeline.process(vision_frame)
         extra_processing(pipeline.convex_hulls_output)
