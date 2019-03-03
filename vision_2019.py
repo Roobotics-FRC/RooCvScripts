@@ -2,6 +2,7 @@ import math
 import cv2
 from networktables import NetworkTables
 from threading import Thread
+from time import sleep
 
 IS_NEW_CAMERA = True  # True for Axis M1045, False for Axis M1011
 
@@ -10,7 +11,7 @@ if IS_NEW_CAMERA:
 else:
     from grip_2019_oldcamera import GripPipeline
 
-root = lmain = vision_thread = None
+vision_thread = None
 
 FRAME_FETCH_INTERVAL = 1  # how long to wait between frames, in milliseconds
 
@@ -20,17 +21,6 @@ IM_WIDTH, IM_HEIGHT = 640, 480
 if not IS_NEW_CAMERA:
     IM_WIDTH, IM_HEIGHT = 320, 240
 COMPRESSION = 50  # from 0 to 100
-
-try:
-    from PIL import Image, ImageTk
-    import tkinter as tk
-    root = tk.Tk()
-    root.wm_attributes("-topmost", 1)
-
-    lmain = tk.Label(root, width=WINDOW_WIDTH, height=WINDOW_HEIGHT)
-    lmain.pack()
-except ImportError:
-    print('Could not import PIL; OpenCV imshow debugging mode will be used instead')
 
 NetworkTables.initialize(server='roborio-4373-frc.local')
 sd = NetworkTables.getTable('SmartDashboard')
@@ -218,42 +208,31 @@ def calibrate_focal_length(known_distance_to_target, contours):
 shared_frame = None
 
 
-def show_frame():
-    """
-    Renders the shared frame in an always-foreground window (using Windows APIs).
-    """
-    global shared_frame
-    _, shared_frame = cap.read()
-    cv2image = cv2.cvtColor(shared_frame, cv2.COLOR_BGR2RGBA)
-    if IM_WIDTH != WINDOW_WIDTH or IM_HEIGHT != WINDOW_HEIGHT:
-        cv2image = cv2.resize(cv2image, (0, 0), fx=WINDOW_WIDTH / IM_WIDTH, fy=WINDOW_HEIGHT / IM_HEIGHT)
-    img = Image.fromarray(cv2image)
-    imgtk = ImageTk.PhotoImage(image=img)
-    lmain.imgtk = imgtk
-    lmain.configure(image=imgtk)
-    lmain.after(FRAME_FETCH_INTERVAL, show_frame)
-
-
 def do_background_vision_computation():
     """
     Maintains an infinitely iterating thread that does vision computations on the shared frame.
     """
+    global shared_frame
     while True:
+        if shared_frame is None:
+            return
         vision_frame = shared_frame[Y_CROP_START:Y_CROP_END, X_CROP_START:X_CROP_END]
         pipeline.process(vision_frame)
         extra_processing(pipeline.convex_hulls_output)
 
 
-if root is None:
-    while cap.isOpened():
-        _, frame = cap.read()
-        frame = frame[Y_CROP_START:Y_CROP_END, X_CROP_START:X_CROP_END]
-        pipeline.process(frame)
-        extra_processing(pipeline.convex_hulls_output)
-        contour_frame = cv2.drawContours(frame, pipeline.convex_hulls_output, -1, (0, 0, 0), 1)
-        cv2.imshow('contours', contour_frame)
-        cv2.waitKey(FRAME_FETCH_INTERVAL)
-else:
-    show_frame()
+def main():
+    global vision_thread, shared_frame
     vision_thread = Thread(target=do_background_vision_computation, args=()).start()
-    root.mainloop()
+    while cap.isOpened():
+        success, shared_frame = cap.read()
+        if not success:
+            print('Connection failed; will retry in 1 second...')
+            sleep(1)
+            continue
+        cv2.imshow('camera', shared_frame)
+        cv2.waitKey(FRAME_FETCH_INTERVAL)
+
+
+if __name__ == "__main__":
+    main()
