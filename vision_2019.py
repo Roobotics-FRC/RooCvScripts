@@ -40,7 +40,7 @@ cap = cv2.VideoCapture(f'http://axis-camera.local/mjpg/video.mjpg?resolution={IM
 # constants in inches
 VISION_TARGET_WIDTH = 2  # TODO: is this more accurate as 2.25?
 INTER_VISION_TARGET_DIST = 8
-FOCAL_LENGTH = 460.70837688446045 if IS_NEW_CAMERA else 382.8186340332031  # precomputed
+FOCAL_LENGTH = 375.4672050476074 if IS_NEW_CAMERA else 382.8186340332031  # precomputed
 
 # constants in pixels
 Y_CROP_START = 0
