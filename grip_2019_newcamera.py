@@ -13,8 +13,8 @@ class GripPipeline:
         """
 
         self.__hsv_threshold_hue = [74.46043165467626, 99.01528013582343]
-        self.__hsv_threshold_saturation = [94.01978417266189, 255.0]
-        self.__hsv_threshold_value = [139.8830935251799, 255.0]
+        self.__hsv_threshold_saturation = [144.46942446043167, 255.0]
+        self.__hsv_threshold_value = [142.17625899280577, 255.0]
 
         self.hsv_threshold_output = None
 
