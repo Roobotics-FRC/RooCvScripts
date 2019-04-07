@@ -1,0 +1,1 @@
+Driver Station CV testing code (in Python). PID values are tuned for turning as of 10/17 and work with RooBotPost2017. This code works with several commands from RoobotPost2017. The script computes an angle offset to the target and feeds that value via NetworkTables to the robot.
